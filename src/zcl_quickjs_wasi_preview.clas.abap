@@ -2,12 +2,16 @@ CLASS zcl_quickjs_wasi_preview DEFINITION PUBLIC.
   PUBLIC SECTION.
     INTERFACES zif_wasm_module.
     METHODS constructor IMPORTING io_memory TYPE REF TO zcl_wasm_memory.
+  PROTECTED SECTION.
   PRIVATE SECTION.
     DATA mo_memory    TYPE REF TO zcl_wasm_memory.
     DATA mt_functions TYPE STANDARD TABLE OF string WITH EMPTY KEY.
 ENDCLASS.
 
-CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
+
+
+CLASS ZCL_QUICKJS_WASI_PREVIEW IMPLEMENTATION.
+
 
   METHOD constructor.
     INSERT |fd_close| INTO TABLE mt_functions.
@@ -21,6 +25,7 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
     mo_memory = io_memory.
   ENDMETHOD.
 
+
   METHOD zif_wasm_module~execute_function_export.
     DATA lv_xstr    TYPE xstring.
     DATA lv_pointer TYPE i.
@@ -32,7 +37,7 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
     CASE iv_name.
       WHEN 'environ_get'.
 * https://wasix.org/docs/api-reference/wasi/environ_get
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN 'environ_sizes_get'.
 * https://wasix.org/docs/api-reference/wasi/environ_sizes_get
 * (param i32 i32) (result i32)
@@ -47,7 +52,7 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
           iv_bytes  = '00000000'
           iv_offset = lo_ptr2->get_signed( ) ).
 
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN 'fd_write'.
 * https://github.com/tinygo-org/tinygo/blob/6384ecace093df2d0b93915886954abfc4ecfe01/targets/wasm_exec.js#L242
 * (param i32 i32 i32 i32) (result i32)
@@ -90,13 +95,14 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
           iv_bytes  = zcl_wasm_binary_stream=>reverse_hex( lv_hex4 )
           iv_offset = lv_nwritten->get_signed( ) ).
 
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN OTHERS.
         RAISE EXCEPTION TYPE zcx_wasm
           EXPORTING
             text = |cl_quickjs_wasi_preview: execute_function_export "{ iv_name }"|.
     ENDCASE.
   ENDMETHOD.
+
 
   METHOD zif_wasm_module~get_export_by_name.
     READ TABLE mt_functions WITH KEY table_line = iv_name INTO DATA(lv_name).
@@ -107,9 +113,6 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  METHOD zif_wasm_module~instantiate.
-    ri_module ?= me.
-  ENDMETHOD.
 
   METHOD zif_wasm_module~get_memory.
     RAISE EXCEPTION TYPE zcx_wasm
@@ -117,4 +120,8 @@ CLASS zcl_quickjs_wasi_preview IMPLEMENTATION.
         text = 'cl_quickjs_wasi_preview: get_memory'.
   ENDMETHOD.
 
+
+  METHOD zif_wasm_module~instantiate.
+    ri_module ?= me.
+  ENDMETHOD.
 ENDCLASS.

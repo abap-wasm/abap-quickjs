@@ -3,6 +3,7 @@ CLASS zcl_quickjs_env DEFINITION PUBLIC.
 * emscripten compatible shim?
     INTERFACES zif_wasm_module.
     METHODS constructor.
+  PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS gc_null TYPE x LENGTH 1 VALUE '00'.
     DATA mo_memory    TYPE REF TO zcl_wasm_memory.
@@ -10,14 +11,17 @@ CLASS zcl_quickjs_env DEFINITION PUBLIC.
 
     METHODS read_string
       IMPORTING
-        iv_pointer TYPE int8
+        iv_pointer       TYPE int8
       RETURNING
         VALUE(rv_string) TYPE string
       RAISING
         zcx_wasm.
 ENDCLASS.
 
-CLASS zcl_quickjs_env IMPLEMENTATION.
+
+
+CLASS ZCL_QUICKJS_ENV IMPLEMENTATION.
+
 
   METHOD constructor.
 * https://github.com/emscripten-core/emscripten/blob/main/src/library.js
@@ -53,6 +57,7 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
     INSERT |qts_host_normalize_module| INTO TABLE mt_functions.
   ENDMETHOD.
 
+
   METHOD read_string.
     DATA lv_xstr TYPE xstring.
     DATA lv_hex  TYPE x LENGTH 1 VALUE '01'.
@@ -70,6 +75,7 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
     ENDWHILE.
     rv_string = cl_abap_codepage=>convert_from( lv_xstr ).
   ENDMETHOD.
+
 
   METHOD zif_wasm_module~execute_function_export.
     CONSTANTS lc_epoch TYPE timestamp VALUE '19700101000000'.
@@ -102,7 +108,7 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
           tstmp1 = lv_time
           tstmp2 = lc_epoch ).
         lv_seconds = lv_seconds * 1000.
-        INSERT zcl_wasm_f64=>from_float( lv_seconds ) INTO rt_results.
+        INSERT zcl_wasm_f64=>from_float( lv_seconds ) INTO TABLE rt_results.
       WHEN 'emscripten_get_module_name'.
 * (param i32 i32) (result i32)
 * input: pointer + max length
@@ -115,7 +121,7 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
         li_linear->set(
           iv_bytes  = lv_xstr
           iv_offset = CONV #( lv_pointer ) ).
-        INSERT zcl_wasm_i32=>from_signed( xstrlen( lv_xstr ) ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( xstrlen( lv_xstr ) ) INTO TABLE rt_results.
       WHEN 'emscripten_resize_heap'.
 * https://github.com/emscripten-core/emscripten/blob/918e131fae0b5c7b1d05a5c75d7e8e676c377713/system/include/emscripten/heap.h#L27-L32
 * https://github.com/emscripten-core/emscripten/blob/918e131fae0b5c7b1d05a5c75d7e8e676c377713/system/lib/standalone/standalone.c#L152
@@ -126,17 +132,17 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
         DATA(lv_pages) = ceil( lv_diff / 65536 ) + 1.
         WRITE / |emscripten_resize_heap: grow { lv_pages } pages, requested diff { lv_diff }, requested size { lv_input }|.
         mo_memory->get_linear( )->grow( CONV #( lv_pages ) ).
-        INSERT zcl_wasm_i32=>from_signed( 1 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 1 ) INTO TABLE rt_results.
       WHEN 'emscripten_stack_unwind_buffer'.
 * https://github.com/emscripten-core/emscripten/blob/faee8d3e40ec8b0905ed26d31b1d5e332509519c/src/library_stack_trace.js#L238
 * (param i32 i32 i32) (result i32)
 * hmm
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN 'emscripten_stack_snapshot'.
 * (result i32)
 * https://github.com/emscripten-core/emscripten/blob/918e131fae0b5c7b1d05a5c75d7e8e676c377713/src/library.js#L2599
 * hmm
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN '_emscripten_sanitizer_get_option'.
 * (param i32) (result i32)
 * input: pointer to string?
@@ -146,13 +152,14 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
         WRITE / |emscripten_sanitizer_get_option: { lv_str }|.
 * todo, return malloc'ed string pointer? by calling the malloc inside the wasm?
 * ya, https://github.com/emscripten-core/emscripten/blob/d0c4878b899c6b597c2291ce6ff2734bb9136a8d/src/library_strings.js#L479
-        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO rt_results.
+        INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN OTHERS.
         RAISE EXCEPTION TYPE zcx_wasm
           EXPORTING
             text = |cl_quickjs_env: execute_function_export "{ iv_name }"|.
     ENDCASE.
   ENDMETHOD.
+
 
   METHOD zif_wasm_module~get_export_by_name.
     READ TABLE mt_functions WITH KEY table_line = iv_name INTO DATA(lv_name).
@@ -163,6 +170,12 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+
+  METHOD zif_wasm_module~get_memory.
+    ro_memory = mo_memory.
+  ENDMETHOD.
+
+
   METHOD zif_wasm_module~instantiate.
     mo_memory = NEW zcl_wasm_memory( ).
 * initial memory in JS is 16mb = 256 pages
@@ -171,9 +184,4 @@ CLASS zcl_quickjs_env IMPLEMENTATION.
       iv_max = 1000 ) ).
     ri_module ?= me.
   ENDMETHOD.
-
-  METHOD zif_wasm_module~get_memory.
-    ro_memory = mo_memory.
-  ENDMETHOD.
-
 ENDCLASS.
