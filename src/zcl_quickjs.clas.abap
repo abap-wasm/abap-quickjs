@@ -349,7 +349,7 @@ CLASS ZCL_QUICKJS IMPLEMENTATION.
     lv_offset = io_pointer->mv_value.
 
     DO.
-      lv_hex = gi_wasm->get_memory( )->get_linear( )->get(
+      lv_hex = gi_wasm->get_memory( )->mi_linear->get(
         iv_offset = lv_offset
         iv_length = 1 ).
 
@@ -381,7 +381,7 @@ CLASS ZCL_QUICKJS IMPLEMENTATION.
     lv_xstr = cl_abap_codepage=>convert_to( iv_string ).
     CONCATENATE lv_xstr gc_null INTO lv_xstr IN BYTE MODE.
 
-    gi_wasm->get_memory( )->get_linear( )->set(
+    gi_wasm->get_memory( )->mi_linear->set(
       iv_offset = CONV #( ro_pointer->mv_value )
       iv_bytes  = lv_xstr ).
 
