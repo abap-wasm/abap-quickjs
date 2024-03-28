@@ -46,11 +46,11 @@ CLASS ZCL_QUICKJS_WASI_PREVIEW IMPLEMENTATION.
 
         li_linear->set(
           iv_bytes  = '00000000'
-          iv_offset = lo_ptr1->get_signed( ) ).
+          iv_offset = CONV #( lo_ptr1->mv_value ) ).
 
         li_linear->set(
           iv_bytes  = '00000000'
-          iv_offset = lo_ptr2->get_signed( ) ).
+          iv_offset = CONV #( lo_ptr2->mv_value ) ).
 
         INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN 'fd_write'.
@@ -65,16 +65,16 @@ CLASS ZCL_QUICKJS_WASI_PREVIEW IMPLEMENTATION.
         " WRITE / |size, { lv_size->get_signed( ) }|.
         " WRITE / |nwritten, { lv_nwritten->get_signed( ) }|.
 
-        DO lv_size->get_signed( ) TIMES.
+        DO lv_size->mv_value TIMES.
           DATA(lv_index) = sy-index - 1.
 
           lv_pointer = li_linear->get(
             iv_length = 4
-            iv_offset = lv_iovs->get_signed( ) + ( 8 * lv_index ) ).
+            iv_offset = lv_iovs->mv_value + ( 8 * lv_index ) ).
 
           lv_length = li_linear->get(
             iv_length = 4
-            iv_offset = lv_iovs->get_signed( ) + 4 + ( 8 * lv_index ) ).
+            iv_offset = lv_iovs->mv_value + 4 + ( 8 * lv_index ) ).
           " WRITE / lv_pointer.
           " WRITE / lv_length.
           IF lv_length = 0.
@@ -93,7 +93,7 @@ CLASS ZCL_QUICKJS_WASI_PREVIEW IMPLEMENTATION.
         lv_hex4 = lv_written.
         li_linear->set(
           iv_bytes  = zcl_wasm_binary_stream=>reverse_hex( lv_hex4 )
-          iv_offset = lv_nwritten->get_signed( ) ).
+          iv_offset = CONV #( lv_nwritten->mv_value ) ).
 
         INSERT zcl_wasm_i32=>from_signed( 0 ) INTO TABLE rt_results.
       WHEN OTHERS.
